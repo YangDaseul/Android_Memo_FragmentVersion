@@ -3,6 +3,7 @@ package com.example.memo_fragmentversion;
 import android.Manifest;
 import android.app.Activity;
 import android.content.ContentResolver;
+import android.content.ContentUris;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -56,6 +57,7 @@ public class NoteFragment extends Fragment {
     MainActivity activity;
 
     File file;
+    Uri uri;
 
     private EventListener eventListener;
 
@@ -100,20 +102,23 @@ public class NoteFragment extends Fragment {
 
         imageView = rootView.findViewById(R.id.imageView);
 
+
         TextView saveBtn = rootView.findViewById(R.id.saveBtn);
         saveBtn.setOnClickListener(new View.OnClickListener() { // 완료 버튼 눌렀을 때
             @Override
             public void onClick(View v) {
-                Bundle bundle = getArguments();
+                Bundle bundle = getArguments(); // // 작성버튼 클릭인지, 수정/삭제인지
+
                 if (bundle != null) {
                     type = bundle.getString("type");
-                    listId = bundle.getInt("listId");
 
                     if (type.equals("insert")) { // 글 작성 버튼 눌렀을 때
                         insert();
-
                     } else if (type.equals("update")) { // 아이템 클릭하여 수정할 때
+                        Bundle bundle1 = getArguments();
+                        bundle1.getInt("listId", listId);
                         modify(listId);
+
                     }
                 }
             }
@@ -146,6 +151,7 @@ public class NoteFragment extends Fragment {
         }
     }
 
+
     public void imageDelete() { // 추가한 이미지 삭제 시 photo 아이콘 표시
         imageView.setImageBitmap(null);
 
@@ -166,6 +172,7 @@ public class NoteFragment extends Fragment {
         return dateFormat.format(date);
     }
 
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) { // 카메라 연동 권한 요청
 
@@ -181,14 +188,15 @@ public class NoteFragment extends Fragment {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
+
     public void takePicture() { // 카메라 어플 연동
         if (file == null) {
             file = createFile();
         }
-        
+
         //File 객체 -> Uri 객체
-        Uri uri = FileProvider.getUriForFile(getContext(), "com.example.memo.fileprovider", file);
-        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        uri = FileProvider.getUriForFile(getContext(), "com.example.memo.fileprovider", file);
+        Intent intent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
         intent.putExtra(MediaStore.EXTRA_OUTPUT, uri);
         if (intent.resolveActivity(activity.getPackageManager()) != null) {
             startActivityForResult(intent, IMAGE_CAPTURE); // 사진 찍기 화면 띄우기
@@ -196,7 +204,7 @@ public class NoteFragment extends Fragment {
 
     }
 
-    private File createFile() {
+    private File createFile() { // 촬영한 사진 파일 생성
         String fileName = "capture.jpg" + getDate(); // capture.jsp 라는 이름으로 파일 저장
 
         File storageDir = Environment.getExternalStorageDirectory();
@@ -233,22 +241,43 @@ public class NoteFragment extends Fragment {
                     String[] filePathColumn = {MediaStore.MediaColumns.DATA};
                     int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
                     picturePath = cursor.getString(columnIndex);
+
                     Log.d("picture", picturePath);
 
 
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-            } else if(requestCode == IMAGE_CAPTURE){
+
+                //카메라 연동
+            } else if (requestCode == IMAGE_CAPTURE) {
+/*
                 // 이미지 파일을 Bitmap 객체로 만들기
                 BitmapFactory.Options options = new BitmapFactory.Options();
                 options.inSampleSize = 8;
                 picturePath = file.getAbsolutePath();
 
+                Log.d("capture", picturePath);
+
                 Bitmap bitmap = BitmapFactory.decodeFile(picturePath, options);
                 imageView.setImageBitmap(bitmap);
+
+ */
+                try {
+                    Bitmap bitmap = MediaStore.Images.Media.getBitmap(activity.getContentResolver(), uri);
+                    imageView.setImageBitmap(bitmap);
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
+
+
+
+
+
             }
         }
+        imageAdd.setVisibility(View.VISIBLE);
+        imageDelete.setVisibility(View.VISIBLE);
     }
 
 

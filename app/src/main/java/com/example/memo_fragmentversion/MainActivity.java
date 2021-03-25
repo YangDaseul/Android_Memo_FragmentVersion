@@ -1,12 +1,21 @@
 package com.example.memo_fragmentversion;
 
+import android.Manifest;
+import android.content.ContentResolver;
+import android.content.Context;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.MenuItem;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
@@ -15,6 +24,7 @@ import androidx.viewpager.widget.ViewPager;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
+import java.io.File;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity implements NoteFragment.EventListener {
@@ -24,6 +34,13 @@ public class MainActivity extends AppCompatActivity implements NoteFragment.Even
 
     MemoListFragment memoListFragment;
     NoteFragment noteFragment;
+
+    public static Context context;
+    String[] permission_list = {
+             Manifest.permission.READ_EXTERNAL_STORAGE
+    };
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,6 +61,10 @@ public class MainActivity extends AppCompatActivity implements NoteFragment.Even
 
         viewPager.setAdapter(adapter);
 
+        context = this;
+        
+        //권한 확인
+        checkPermission();
 
         // 하단 탭
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottom_navigation);
@@ -72,6 +93,44 @@ public class MainActivity extends AppCompatActivity implements NoteFragment.Even
         });
     }
 
+    //권한 확인
+    public void checkPermission(){
+        //현재 안드로이드 버전이 6.0미만이면 메서드를 종료한다.
+        if(Build.VERSION.SDK_INT < Build.VERSION_CODES.M)
+            return;
+
+        for(String permission : permission_list){
+            //권한 허용 여부를 확인한다.
+            int chk = checkCallingOrSelfPermission(permission);
+
+            if(chk == PackageManager.PERMISSION_DENIED){
+                //권한 허용을여부를 확인하는 창을 띄운다
+                requestPermissions(permission_list,0);
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if(requestCode==0)
+        {
+            for(int i=0; i<grantResults.length; i++)
+            {
+                //허용됬다면
+                if(grantResults[i]==PackageManager.PERMISSION_GRANTED){
+                }
+                else {
+                    Toast.makeText(getApplicationContext(),"앱권한설정하세요",Toast.LENGTH_LONG).show();
+                    finish();
+                }
+            }
+        }
+    }
+
+
+
+
 
     @Override
     public void OnShowList(Bundle bundle) { // 리스트뷰 출력
@@ -82,15 +141,29 @@ public class MainActivity extends AppCompatActivity implements NoteFragment.Even
             viewPager.setCurrentItem(0); // memoListFragment
             memoListFragment.listData();
 
-        }else if(type.equals("modify") || type.equals("delete")){
+        }else if(type.equals("update")){ // 수정, 삭제 시
             viewPager.setCurrentItem(1); // noteFragment
 
             int listId = mBundle.getInt("listId");
             String listPicture = mBundle.getString("listPicture");
             String listContents = mBundle.getString("listContents");
 
+            try{
+                ContentResolver resolver = getContentResolver();
+                Uri uri = Uri.fromFile(new File(listPicture));
+                Bitmap bitmap = MediaStore.Images.Media.getBitmap(resolver, uri);
+                noteFragment.imageView.setImageBitmap(bitmap);
+
+            }catch (Exception e){
+                e.printStackTrace();
+            }
             noteFragment.contentsText.setText(listContents);
-            noteFragment.imageView.setImageBitmap(BitmapFactory.decodeFile(listPicture));
+            //noteFragment.imageView.setImageBitmap(BitmapFactory.decodeFile(listPicture));
+            Log.d("listPicture", listPicture);
+
+            mBundle.putString("listId", String.valueOf(listId));
+            NoteFragment.newInstance();
+
 
         }
 
